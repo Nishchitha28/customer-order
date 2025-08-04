@@ -49,3 +49,33 @@ const port = 3000;
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
+
+app.get('/customers/:id/orders', (req, res) => {
+    const customerId = req.params.id;
+    const sql = `SELECT * FROM orders WHERE user_id = ?`;
+
+    db.all(`SELECT * FROM orders WHERE user_id = ?`, [customerId], (err, orders) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if(rows.length === 0) {
+            return res.status(404).json({ error: 'No orders found for this customer' });
+        }   
+        res.json(orders);
+    });
+});
+
+app.get('/orders/id', (req, res) => {
+    const orderId = req.params.id;
+    const sql = `SELECT * FROM orders WHERE id = ?`;
+
+    db.get(`SELECT * FROM orders WHERE id = ?`, [orderId], (err, order) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!row) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+        res.json(order);
+    });
+});
