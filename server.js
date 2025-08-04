@@ -1,26 +1,51 @@
+const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('ecommerce.db');
+const cors = require('cors');
 
-db.all("SELECT * FROM users LIMIT 5", [], (err, users) => {
-    if (err) {
-        console.error("Error fetching users:", err.message);
-        return;
-    }
-    console.log("Users:", users);
+const app = express();
+const db = new sqlite3.Database('data.db');
 
-    db.all("SELECT * FROM orders LIMIT 5", [], (err, orders) => {
+app.use(cors());
+app.use(express.json());
+
+// Get paginated customers
+app.get('/customers', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    db.all(`SELECT * FROM users LIMIT ? OFFSET ?`, [limit, offset], (err, rows) => {
         if (err) {
-            console.error("Error fetching orders:", err.message);
-            return;
+            return res.status(500).json({ error: err.message });
         }
-        console.log("Orders:", orders);
+        res.json({ page, limit, customers: rows });
+    });
+});
 
-        db.close((err) => {
+// Get a customer by ID with order count
+app.get('/customers/:id', (req, res) => {
+    const customerId = req.params.id;
+
+    db.get(`SELECT * FROM users WHERE id = ?`, [customerId], (err, user) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!user) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        db.get(`SELECT COUNT(*) AS orderCount FROM orders WHERE user_id = ?`, [customerId], (err, countRow) => {
             if (err) {
-                console.error("Error closing database:", err.message);
-            } else {
-                console.log("Database connection closed.");
+                return res.status(500).json({ error: err.message });
             }
+
+            user.orderCount = countRow.orderCount;
+            res.json(user);
         });
     });
+});
+
+const port = 3000;
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
 });
